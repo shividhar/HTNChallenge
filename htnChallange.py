@@ -16,8 +16,33 @@ app.config.update(dict(
     USERNAME='admin',
     PASSWORD='default'
 ))
-app.config.from_envvar('FLASKR_SETTINGS', silent=True)
 
+def getUserJson(currentUser):
+    if currentUser is not None:
+        db = get_db()
+        userSkills = db.execute("select * from skills where id=" + str(currentUser["id"]))
+        if userSkills is not None:
+            skillsJson = []
+            for skill in userSkills:
+                skillsJson.append({
+                    "name": skill["name"],
+                    "ratin": skill["rating"]
+                })
+            returnJson = {
+                "name": currentUser["name"],
+                "picture": currentUser["picture"],
+                "company": currentUser["company"],
+                "email": currentUser["email"],
+                "phone": currentUser["phone"],
+                "country": currentUser["country"],
+                "latitude": currentUser["latitude"],
+                "longitude": currentUser["longitude"],
+                "skills": skillsJson
+            }
+            return returnJson
+        return {}
+    else:
+        return {}
 
 def connect_db():
     """Connects to the specific database."""
@@ -56,7 +81,7 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
-@app.route('/insertToDB')
+@app.route('/insertUsersToDB')
 def add_users():
     userContent = json.loads(requests.get('https://htn-interviews.firebaseio.com/users.json').content)
     db = get_db()
@@ -89,54 +114,18 @@ def sendUsers():
     returnJson = []
     for user in queryUserSkills:
         currentUser = queryUsers.fetchone()
-        skillsJson = []
-        if currentUser is not None:
-            userSkills = db.execute("select * from skills where id=" + str(currentUser["id"]))
-            if userSkills is not None:
-                for skill in userSkills:
-                    skillsJson.append({
-                        "name": skill["name"],
-                        "ratin": skill["rating"]
-                    })
-                returnJson.append({
-                    "name": currentUser["name"],
-                    "picture": currentUser["picture"],
-                    "company": currentUser["company"],
-                    "email": currentUser["email"],
-                    "phone": currentUser["phone"],
-                    "country": currentUser["country"],
-                    "latitude": currentUser["latitude"],
-                    "longitude": currentUser["longitude"],
-                    "skills": skillsJson
-                })
+        userJson = getUserJson(currentUser)
+        returnJson.append(userJson)
     return jsonify(returnJson)
 
 @app.route('/users/<user_id>', methods=["GET"])
-def sendUsersById(user_id):
+def sendUserById(user_id):
     try:
         user_id = int(user_id)
         db = get_db()
         queryUsersById = db.execute('select * from users where id=' + str(user_id))
         for user in queryUsersById:
-            userSkills = db.execute("select * from skills where id=" + str(user["id"]))
-            skillsJson = []
-            for skill in userSkills:
-                skillsJson.append({
-                    "name": skill["name"],
-                    "rating": skill["rating"]
-                })
-            returnJson = {
-                "name": user["name"],
-                "picture": user["picture"],
-                "company": user["company"],
-                "email": user["email"],
-                "phone": user["phone"],
-                "country": user["country"],
-                "latitude": user["latitude"],
-                "longitude": user["longitude"],
-                "skills": skillsJson
-            }
-            return jsonify(returnJson)
+            return(jsonify(getUserJson(user)))
         return "USER NOT FOUND"
     except ValueError:
        return "USER NOT FOUND"
@@ -159,25 +148,7 @@ def editUser(user_id):
             queryUsersById = db.execute('select * from users where id=' + str(user_id))
 
             for user in queryUsersById:
-                userSkills = db.execute("select * from skills where id=" + str(user["id"]))
-                skillsJson = []
-                for skill in userSkills:
-                    skillsJson.append({
-                        "name": skill["name"],
-                        "rating": skill["rating"]
-                    })
-                returnJson = {
-                    "name": user["name"],
-                    "picture": user["picture"],
-                    "company": user["company"],
-                    "email": user["email"],
-                    "phone": user["phone"],
-                    "country": user["country"],
-                    "latitude": user["latitude"],
-                    "longitude": user["longitude"],
-                    "skills": skillsJson
-                }
-                return jsonify(returnJson)
+                return (jsonify(getUserJson(user)))
 
             return "Invalid Parameter"
         return "USER NOT FOUND"
